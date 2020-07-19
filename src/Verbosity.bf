@@ -4,6 +4,7 @@ namespace CowieCLI
 	{
 		Quiet,
 		Normal,
-		Verbose
+		Verbose,
+		Debug
 	}
 }

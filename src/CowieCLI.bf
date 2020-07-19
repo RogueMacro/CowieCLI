@@ -61,12 +61,12 @@ namespace CowieCLI
 					commandCall.Command.Set(arg);
 				}
 				// Multiple command calls (same options). Example: > install+add mypackage --verbose
-				else if (IsMultiCommand(arg))
+				/*else if (IsMultiCommand(arg))
 				{
 					extraCommands = scope:: .();
 					for (let command in arg.Split('+'))
 						extraCommands.Add(command);
-				}
+				}*/
 				else if (commandCall.Command.IsEmpty)
 				{
 					FatalError("Unknown command: {}", arg);
@@ -119,6 +119,10 @@ namespace CowieCLI
 			{
 				switch (option)
 				{
+				case "--debug", "-d":
+					CurrentVerbosity = .Debug;
+					options.DeleteAndRemove(option);
+					break;
 				case "--verbose", "-v":
 					CurrentVerbosity = .Verbose;
 					options.DeleteAndRemove(option);
