@@ -10,15 +10,15 @@ namespace CowieCLI
 
 		public static Verbosity CurrentVerbosity = .Normal;
 
-		public static String HelpMessage = new String();
+		public static String HelpMessage;
 		public static Type DefaultCommand = null;
 
-		public static void Init(StringView helpMessage = "")
+		public static void Init(String helpMessage = "")
 		{
-			HelpMessage.Set(helpMessage);
+			HelpMessage = helpMessage;
 		}
 
-		public static void Init<TDefaultCommand>(StringView helpMessage = "") where TDefaultCommand : ICommand
+		public static void Init<TDefaultCommand>(String helpMessage = "") where TDefaultCommand : ICommand
 		{
 			DefaultCommand = typeof(TDefaultCommand);
 			Init(helpMessage);
@@ -191,7 +191,7 @@ namespace CowieCLI
 					switch (field.FieldType)
 					{
 					case typeof(String):
-						field.GetValue<String>(option, var value);
+						field.GetValue<String>(command, var value);
 
 						if (value == "")
 							CheckRequirement();
@@ -201,7 +201,7 @@ namespace CowieCLI
 
 						break;
 					case typeof(List<String>):
-						field.GetValue<List<String>>(option, var value);
+						field.GetValue<List<String>>(command, var value);
 
 						if (value.Count == 0)
 							CheckRequirement();
@@ -211,7 +211,7 @@ namespace CowieCLI
 
 						break;
 					case typeof(bool):
-						field.GetValue<bool>(option, var value);
+						field.GetValue<bool>(command, var value);
 
 						if (!value)
 							CheckRequirement();
