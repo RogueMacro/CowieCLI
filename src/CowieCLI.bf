@@ -40,7 +40,7 @@ namespace CowieCLI
 			CommandCall commandCall = scope .();
 
 			// TODO: Implement multiple command
-			List<StringView> extraCommands = null;
+			// List<StringView> extraCommands = null;
 
 			for (var arg in args)
 			{
@@ -142,10 +142,17 @@ namespace CowieCLI
 					switch (field.FieldType)
 					{
 					case typeof(String):
-						field.SetValue(command, GetStringOption(option.Name, option.Short));
+						var actualOption = GetStringOption(option.Name, option.Short);
+						if (actualOption == "" && option.IsRequired)
+							FatalError("Option {} is required", option);
+
+						field.SetValue(command, actualOption);
 						break;
 					case typeof(List<String>):
 						var optionValues = GetMultipleOptions(option.Name, option.Short);
+						if (optionValues.Count == 0 && option.IsRequired)
+							FatalError("Option {} is required", option);
+
 						field.SetValue(command, optionValues);
 						for (var value in optionValues)
 							options.Remove(value);
@@ -162,7 +169,7 @@ namespace CowieCLI
 					RemoveOption(option.Name, option.Short);
 				}
 				else
-					FatalError("Could not find field matching option: {}", option.Name);
+					FatalError("Could not find field matching option: {}", option);
 			}
 
 			if (options.Count == 1)
@@ -173,7 +180,65 @@ namespace CowieCLI
 				FatalError("Unknown options: {}", str);
 			}
 
+			// Check requirements and conflicts
+			for (let optionToCheck in command.Info.Options)
+			{
+				for (let option in command.Info.Options)
+				{
+					if (option == optionToCheck)
+						continue;
+
+					var field = GetField(option.Name).Get(); // Has already been proven in previous loop that it exists
+					
+					switch (field.FieldType)
+					{
+					case typeof(String):
+						field.GetValue<String>(option, var value);
+
+						if (value == "")
+							CheckRequirement();
+
+						if (value != "")
+							CheckConflict();
+
+						break;
+					case typeof(List<String>):
+						field.GetValue<List<String>>(option, var value);
+
+						if (value.Count == 0)
+							CheckRequirement();
+
+						if (value.Count > 0)
+							CheckConflict();
+
+						break;
+					case typeof(bool):
+						field.GetValue<bool>(option, var value);
+
+						if (!value)
+							CheckRequirement();
+
+						if (value)
+							CheckConflict();
+
+						break;
+					}
+				}
+			}
+
 			command.Execute();
+
+			void CheckRequirement()
+			{
+				if (optionToCheck.Requirements.Contains(option.Name))
+					FatalError("Option {} requires the {} option", optionToCheck, option);
+			}
+
+			void CheckConflict()
+			{
+				if (optionToCheck.Conflicts.Contains(option.Name))
+					FatalError("Option {} conflicts with the {} option", optionToCheck, option);
+			}	
 
 			void RemoveOption(String verbose, String short)
 			{
@@ -206,21 +271,22 @@ namespace CowieCLI
 				return false;
 			}
 
-			Result<String> GetStringOption(String verbose, String short = "")
+			String GetStringOption(String verbose, String short = "")
 			{
+				var str = new String();
 				var enumerator = options.GetEnumerator();
 				for (var option in enumerator)
 				{
 					if (IsOption(option, verbose, short))
 					{
 						if (enumerator.GetNext() case .Ok(let nextOption))
-							return nextOption;
+							str.Set(nextOption);
 						else
-							FatalError("Option {} has no corresponding value", option);
+							FatalError("Option {} has no value", option);
 					}
 				}
 
-				return .Err;
+				return str;
 			}
 
 			List<String> GetMultipleOptions(String verbose, String short = "")
@@ -305,10 +371,10 @@ namespace CowieCLI
 			return answer;
 		}
 
-		public static void Warning(StringView fmt, params Object[] args) => Print(.Yellow, scope String()..AppendF("[Warning] {}", fmt), params args);
-
-		public static void Error(StringView fmt, params Object[] args) => Print(.Red, scope String()..AppendF("[Error] {}", fmt), params args);
-
+		public static void Success(StringView fmt, params Object[] args) => Print(.Green, true, scope String()..AppendF("[Success] {}", fmt), params args);
+		public static void Info(StringView fmt, params Object[] args) => Print(.Cyan, true, scope String()..AppendF("[Info] {}", fmt), params args);
+		public static void Warning(StringView fmt, params Object[] args) => Print(.Yellow, true, scope String()..AppendF("[Warning] {}", fmt), params args);
+		public static void Error(StringView fmt, params Object[] args) => Print(.Red, true, scope String()..AppendF("[Error] {}", fmt), params args);
 		public static void FatalError(StringView fmt, params Object[] args)
 		{
 			Error(fmt, params args);
@@ -319,20 +385,19 @@ namespace CowieCLI
 			Internal.FatalError(scope String()..AppendF(fmt, params args));
 		}
 
-		public static void Success(StringView fmt, params Object[] args) => Print(.Green, scope String()..AppendF("[Success] {}", fmt), params args);
-
-		public static void Info(StringView fmt, params Object[] args) => Print(.Cyan, scope String()..AppendF("[Info] {}", fmt), params args);
-
-		public static void Print(StringView fmt, params Object[] args) => Print(.White, fmt, params args);
-
-		public static void Print(ConsoleColor color, StringView fmt, params Object[] args)
+		public static void Print(bool newline, String fmt, params Object[] args) => Print(.White, newline, fmt, params args);
+		public static void Print(ConsoleColor color, bool newline, String fmt, params Object[] args)
 		{
 			if (CurrentVerbosity == .Quiet)
 				return;
 
 			let origin = Console.ForegroundColor;
 			Console.ForegroundColor = color;
-			Console.WriteLine(fmt, params args);
+
+			Console.Write(fmt, params args);
+			if (newline)
+				Console.WriteLine();
+
 			Console.ForegroundColor = origin;
 		}
 	}

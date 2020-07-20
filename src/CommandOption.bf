@@ -12,8 +12,8 @@ namespace CowieCLI
 
 		public String Short = new .() ~ delete _;
 
-		public List<String> Requires = new .() ~ DeleteContainerAndItems!(_);
-		public List<String> ConflictsWith = new .() ~ DeleteContainerAndItems!(_);
+		public List<String> Requirements = new .() ~ DeleteContainerAndItems!(_);
+		public List<String> Conflicts = new .() ~ DeleteContainerAndItems!(_);
 
 		public this(StringView name, StringView description)
 		{
@@ -36,15 +36,20 @@ namespace CowieCLI
 		public Self ConflictsWith(params StringView[] conflicts)
 		{
 			for (let conflict in conflicts)
-				ConflictsWith.Add(new String(conflict));
+				Conflicts.Add(new String(conflict));
 			return this;
 		}
 
 		public Self Requires(params StringView[] requires)
 		{
 			for (let require in requires)
-				Requires.Add(new String(require));
+				Requirements.Add(new String(require));
 			return this;
-		}	
+		}
+
+		public override void ToString(String strBuffer)
+		{
+			strBuffer.Append(Name);
+		}
 	}
 }
