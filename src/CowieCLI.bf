@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace CowieCLI
 {
-	public static class CLI
+	public static class CowieCLI
 	{
 		public static List<CommandEntry> Commands = new .() ~ DeleteContainerAndItems!(_);
 
