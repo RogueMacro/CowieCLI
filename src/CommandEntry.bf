@@ -18,7 +18,7 @@ namespace CowieCLI
 			{
 				var typename = scope String();
 				type.GetFullName(typename);
-				CLI.Error("Invalid CommandEntry: Name = {}, Type = {}", name, typename);
+				CowieCLI.Error("Invalid CommandEntry: Name = {}, Type = {}", name, typename);
 			}
 		}
 
@@ -28,7 +28,7 @@ namespace CowieCLI
 			if (result case .Ok(let val))
 				return (.) result.Get();
 
-			CLI.Error("Could not instantiate command ({})", Name);
+			CowieCLI.Error("Could not instantiate command ({})", Name);
 			return null;
 		}
 	}
