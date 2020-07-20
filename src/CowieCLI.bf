@@ -10,28 +10,26 @@ namespace CowieCLI
 
 		public static Verbosity CurrentVerbosity = .Normal;
 
-		private static void Help(ICommand command = null)
+		public static String HelpMessage = new String();
+		public static Type DefaultCommand = null;
+
+		public static void Init(StringView helpMessage = "")
+		{
+			HelpMessage.Set(helpMessage);
+		}
+
+		public static void Init<TDefaultCommand>(StringView helpMessage = "") where TDefaultCommand : ICommand
+		{
+			DefaultCommand = typeof(TDefaultCommand);
+			Init(helpMessage);
+		}
+
+		public static void Help(ICommand command = null)
 		{
 			if (command == null)
-			{
-				Console.WriteLine(
-					"""
-					Beef Package Manager
-					
-					USAGE:
-					    grill <command> [options]
-					
-					OPTIONS:
-					    -V, --version   Show the current version of Grill
-					    -v, --verbose   Use verbose output
-					        --list      List all commands
-					    -q, --quiet     Disable output
-					""");
-			}
+				Console.WriteLine(HelpMessage);
 			else
-			{
 				Console.WriteLine(command.Info.About);
-			}
 		}
 
 		public static void Run(Span<String> args)
