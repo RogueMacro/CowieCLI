@@ -191,7 +191,7 @@ namespace CowieCLI
 					switch (field.FieldType)
 					{
 					case typeof(String):
-						field.GetValue<String>(option, var value);
+						field.GetValue<String>(command, var value);
 
 						if (value == "")
 							CheckRequirement();
@@ -201,7 +201,7 @@ namespace CowieCLI
 
 						break;
 					case typeof(List<String>):
-						field.GetValue<List<String>>(option, var value);
+						field.GetValue<List<String>>(command, var value);
 
 						if (value.Count == 0)
 							CheckRequirement();
@@ -211,7 +211,7 @@ namespace CowieCLI
 
 						break;
 					case typeof(bool):
-						field.GetValue<bool>(option, var value);
+						field.GetValue<bool>(command, var value);
 
 						if (!value)
 							CheckRequirement();
