@@ -37,7 +37,7 @@ namespace CowieCLI
 			List<CommandCall> calls = scope .();
 			CommandCall commandCall = scope .();
 
-			// TODO: Implement multiple command
+			// TODO: Implement multiple commands same options
 			// List<StringView> extraCommands = null;
 
 			for (var arg in args)
@@ -76,14 +76,14 @@ namespace CowieCLI
 				}
 			}
 
-			calls.Add(commandCall);
-
 			// No commands called
-			if (calls.IsEmpty)
+			if (commandCall.Command.IsEmpty)
 			{
 				Help();
 				return;
 			}
+
+			calls.Add(commandCall);
 
 			for (let call in calls)
 			{
