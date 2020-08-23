@@ -339,7 +339,12 @@ namespace CowieCLI
 				return 2;
 			}
 
-			return command.Execute();
+			let res = command.Execute();
+
+			delete commandCall.Value;
+			delete command;
+
+			return res;
 		}
 
 		private Result<void> PopulateCommand(ICommand command, CommandCall call)
@@ -428,55 +433,47 @@ namespace CowieCLI
 			var listType = field.FieldType as SpecializedGenericType;
 			var paramType = listType.GetGenericArg(0);
 
-			var valuesListRes = listType.CreateObject();
-			if (valuesListRes == .Err)
-			{
-				CowieCLI.Error("Couldn't instatiate type of field {}", field.Name);
-				return .Err;
-			}
-
-			var valuesList = valuesListRes.Value;
-			var addMethod = listType.GetMethod("Add");
+			var fieldRef = field.GetValue(command).Value.Get<Object>();
+			var addMethod = fieldRef.GetType().GetMethod("Add");
 
 			switch (addMethod)
 			{
 			case .Err(let err):
-				CowieCLI.Error("Cannot find method add on field {}", field.Name);
+				CowieCLI.Error("Cannot find method Add on field {}", field.Name);
 				return .Err;
 			default:
 				break;
 			}
 
-			var res = Result<void, FieldInfo.Error>();
-			if (paramType == typeof(String))
+			var res = Result<Variant, MethodInfo.CallError>();
+			for (var value in values)
 			{
-				field.SetValue(command, values);
-			}
-			else
-			{
-				for (var value in values)
+				switch (paramType)
 				{
-					switch (paramType)
-					{
-					case typeof(int):
-						var val = Int.Parse(value);
-						addMethod.Get().Invoke(valuesList, val);
-						break;
-					case typeof(float):
-						var val = Float.Parse(value);
-						addMethod.Get().Invoke(valuesList, val);
-						break;
-					default:
-						CowieCLI.Error("Unsupported type: {}", field.FieldType);
-						return .Err;
-					}
+				case typeof(String):
+					res = addMethod.Get().Invoke(fieldRef, value);
+					break;
+				case typeof(int):
+					var val = Int.Parse(value);
+					res = addMethod.Get().Invoke(fieldRef, val);
+					break;
+				case typeof(float):
+					var val = Float.Parse(value);
+					res = addMethod.Get().Invoke(fieldRef, val);
+					break;
+				default:
+					CowieCLI.Error("Unsupported type: {}", field.FieldType);
+					return .Err;
 				}
-			}
 
-			if (res != .Ok)
-			{
-				CowieCLI.Error("Error setting field {}.", field.Name);
-				return .Err;
+				switch (res)
+				{
+				case .Err(let err):
+					CowieCLI.Error("Error setting field {}.", field.Name);
+					return .Err;
+				case .Ok(let val):
+					break;
+				}
 			}
 
 			return .Ok;
@@ -527,8 +524,8 @@ namespace CowieCLI
 					{
 						option = command.Info.GetNamedOption(namedArg);
 						ParseArgument(args[i + 1], option, values);
+						i++;
 					}
-					i++;
 
 					call.AddOption(option.Name, values);
 				}

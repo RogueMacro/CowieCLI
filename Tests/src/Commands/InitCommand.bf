@@ -20,13 +20,13 @@ namespace CowieCLITests.Commands
 				new CommandOption("flags", "Multiple flags.")
 					.List()
 					.Optional()
-			);
+			) ~ delete (_);
 
 		public override CommandInfo Info => mInfo;
 
 		public String Name { get; set; }
 		public String Location { get; set; }
-		public List<String> Flags { get; set; }
+		public List<String> Flags = new .() ~ DeleteContainerAndItems!(_);
 
 		public override int Execute()
 		{

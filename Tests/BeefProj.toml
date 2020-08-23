@@ -6,4 +6,4 @@ Name = "CowieCLITests"
 StartupObject = "CowieCLITests.Program"
 
 [Configs.Debug.Win64]
-DebugCommandArguments = "init --location \"toto_folder\" --name test --flags \"flag1,flag2,flag3\""
+DebugCommandArguments = "init Grill --flags \"flag1,flag2,flag3\""
