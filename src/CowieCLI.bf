@@ -11,27 +11,27 @@ namespace CowieCLI
 		Option with value (String): --letters abc -> String letters = "abc" (Empty string if option is not present)
 		Option with multiple values (List<String>): --letters a b c -> List<String> letters = { "a", "b", "c" } (Empty list if option is not present)
 	*/
-	public static class CowieCLI
+	public class CowieCLI
 	{
-		public static List<CommandEntry> Commands = new .() ~ DeleteContainerAndItems!(_);
+		public List<CommandEntry> Commands = new .() ~ DeleteContainerAndItems!(_);
 
 		public static Verbosity CurrentVerbosity = .Normal;
 
-		public static String HelpMessage;
-		public static Type DefaultCommand = null;
+		public String HelpMessage;
+		public Type DefaultCommand = null;
 
-		public static void Init(String helpMessage = "")
+		public  void Init(String helpMessage = "")
 		{
 			HelpMessage = helpMessage;
 		}
 
-		public static void Init<TDefaultCommand>(String helpMessage = "") where TDefaultCommand : ICommand
+		public  void Init<TDefaultCommand>(String helpMessage = "") where TDefaultCommand : ICommand
 		{
 			DefaultCommand = typeof(TDefaultCommand);
 			Init(helpMessage);
 		}
 
-		public static void Help(ICommand command = null)
+		public  void Help(ICommand command = null)
 		{
 			if (command == null)
 				Console.WriteLine(HelpMessage);
@@ -39,7 +39,7 @@ namespace CowieCLI
 				Console.WriteLine(command.Info.About);
 		}
 
-		private static CommandCall ParseCall(Span<String> args)
+		/*private  CommandCall ParseCall(Span<String> args)
 		{
 			if (args.Length == 0)
 			{
@@ -73,9 +73,9 @@ namespace CowieCLI
 						return false;
 				return true;
 			}
-		}
+		}*/
 
-		public static void Run(Span<String> args)
+		/*public  void Run(Span<String> args)
 		{
 			var call = ParseCall(args);
 			ICommand command = null;
@@ -300,17 +300,263 @@ namespace CowieCLI
 					return true;
 				return false;
 			}
-		}
+		}*/
 
-		public static bool IsCommand(StringView name)
+		public  void RegisterCommand<T>(StringView name) where T : ICommand
 		{
-			for (var entry in Commands)
-				if (entry.Name == name)
-					return true;
-			return false;
+			let entry = new CommandEntry(name, typeof(T));
+			Commands.Add(entry);
 		}
 
-		public static Result<ICommand> GetCommand(StringView name)
+		public int Run(Span<String> args)
+		{
+			if (args.Length == 0)
+			{
+				Help();
+				return 0;
+			}
+
+			let commandRes = GetCommand(args[0]);
+
+			if (commandRes == .Err)
+			{
+				CowieCLI.Error("Command {} not found.", args[0]);
+				return 1;
+			}
+
+			let command = commandRes.Value;
+			let commandCall = ParseCommand(args, command);
+			if (commandCall == .Err)
+			{
+				CowieCLI.Error("Invalid arguments");
+				Help();
+				return 1;
+			}
+
+			if (PopulateCommand(command, commandCall) case .Err)
+			{
+				CowieCLI.Error("Couldn't populate the command");
+				return 2;
+			}
+
+			return command.Execute();
+		}
+
+		private Result<void> PopulateCommand(ICommand command, CommandCall call)
+		{
+			for (let option in command.Info.Options)
+			{
+				var optionName = scope String(option.Name);
+
+				if (!option.IsOptional && !call.HasOption(optionName))
+				{
+					CowieCLI.Error("Argument {} is required.", optionName);
+					return .Err;
+				}
+
+				if (!call.HasOption(optionName))
+				{
+					continue;
+				}
+
+				String.Capitalized(optionName);
+				var tempField = command.GetType().GetField(optionName);
+				var tempProp = command.GetType().GetProperty(optionName);
+
+				if ((tempField == .Err) && (tempProp == .Err))
+				{
+					CowieCLI.Error("Command {} has no field or property {}", option.Name, optionName);
+					return .Err;
+				}
+
+				var field = (tempField != .Err) ? (tempField.Value) : (
+					(tempProp != .Err) ? (tempProp.Value) : (default(FieldInfo))
+				);
+
+				if (field == default(FieldInfo))
+				{
+					CowieCLI.Error("Setting field {} failed", optionName);
+					return .Err;
+				}
+
+				if (PopulateField(command, field, option, call.GetValues(option.Name)) case .Err)
+				{
+					CowieCLI.Error("Setting field {} failed", optionName);
+					return .Err;
+				}
+			}
+			return .Ok;
+		}
+
+		private Result<void> PopulateField(ICommand command, FieldInfo field, CommandOption option, List<String> values)
+		{
+			if (option.IsList)
+			{
+				return PopulateListField(command, field, values);
+			}
+
+			var res = Result<void, FieldInfo.Error>();
+			switch (field.FieldType)
+			{
+			case typeof(String):
+				res = field.SetValue(command, values[0]);
+				break;
+			case typeof(int):
+				var value = Int.Parse(values[0]);
+				res = field.SetValue(command, value);
+				break;
+			case typeof(float):
+				var value = Float.Parse(values[0]);
+				res = field.SetValue(command, value);
+				break;
+			default:
+				CowieCLI.Error("Unsupported type: {}", field.FieldType);
+				return .Err;
+			}
+
+			if (res != .Ok)
+			{
+				CowieCLI.Error("Error setting field {}.", field.Name);
+				return .Err;
+			}
+
+			return .Ok;
+		}
+
+		private Result<void> PopulateListField(ICommand command, FieldInfo field, List<String> values)
+		{
+			var listType = field.FieldType as SpecializedGenericType;
+			var paramType = listType.GetGenericArg(0);
+
+			var valuesListRes = listType.CreateObject();
+			if (valuesListRes == .Err)
+			{
+				CowieCLI.Error("Couldn't instatiate type of field {}", field.Name);
+				return .Err;
+			}
+
+			var valuesList = valuesListRes.Value;
+			var addMethod = listType.GetMethod("Add");
+
+			switch (addMethod)
+			{
+			case .Err(let err):
+				CowieCLI.Error("Cannot find method add on field {}", field.Name);
+				return .Err;
+			default:
+				break;
+			}
+
+			var res = Result<void, FieldInfo.Error>();
+			if (paramType == typeof(String))
+			{
+				field.SetValue(command, values);
+			}
+			else
+			{
+				for (var value in values)
+				{
+					switch (paramType)
+					{
+					case typeof(int):
+						var val = Int.Parse(value);
+						addMethod.Get().Invoke(valuesList, val);
+						break;
+					case typeof(float):
+						var val = Float.Parse(value);
+						addMethod.Get().Invoke(valuesList, val);
+						break;
+					default:
+						CowieCLI.Error("Unsupported type: {}", field.FieldType);
+						return .Err;
+					}
+				}
+			}
+
+			if (res != .Ok)
+			{
+				CowieCLI.Error("Error setting field {}.", field.Name);
+				return .Err;
+			}
+
+			return .Ok;
+		}
+
+		private Result<CommandCall> ParseCommand(Span<String> args, ICommand command)
+		{
+			var call = new CommandCall();
+			var validArg = true;
+			var optionsParsed = 0;
+
+			// We start as 1 because 0 is the name of the command that should have been parsed
+			// prior to arriving here.
+			for (int i = 1; i < args.Length; i++)
+			{
+				var arg = args[i];
+				var namedArg = scope String();
+				if (!command.HasNamedOption(arg))
+				{
+					validArg = false;
+				}
+				else
+				{
+					namedArg = arg;
+					namedArg.Remove(0, 2);
+				}
+
+				if (!validArg && arg.StartsWith('-'))
+				{
+					return .Err;
+				}
+
+				if ((optionsParsed >= command.Info.Options.Count) && !validArg)
+				{
+					return .Err;
+				}
+				else
+				{
+					var values = scope List<String>();
+					CommandOption option = default;
+
+					if (namedArg.IsEmpty)
+					{
+						option = command.Info.Options[optionsParsed++];
+						ParseArgument(args[i], option, values);
+					}
+					else
+					{
+						option = command.Info.GetNamedOption(namedArg);
+						ParseArgument(args[i + 1], option, values);
+					}
+					i++;
+
+					call.AddOption(option.Name, values);
+				}
+			}
+
+			return call;
+		}
+
+		private void ParseArgument(String arg, CommandOption option, List<String> values)
+		{
+			if (option.IsList)
+			{
+				if (arg.Contains(','))
+				{
+					var vals = arg.Split(',');
+					for (var v in vals)
+					{
+						values.Add(new String(v));
+					}
+				}
+			}
+			else
+			{
+				values.Add(arg);
+			}
+		}
+
+		private Result<ICommand> GetCommand(StringView name)
 		{
 			for (var entry in Commands)
 			{
@@ -321,13 +567,15 @@ namespace CowieCLI
 			return .Err;
 		}
 
-		public static void RegisterCommand<T>(StringView name) where T : ICommand
+		public  bool IsCommand(StringView name)
 		{
-			let entry = new CommandEntry(name, typeof(T));
-			Commands.Add(entry);
+			for (var entry in Commands)
+				if (entry.Name == name)
+					return true;
+			return false;
 		}
 
-		public static bool Ask(StringView text)
+		public  bool Ask(StringView text)
 		{
 			bool DoAsk()
 			{

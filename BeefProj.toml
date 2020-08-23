@@ -2,3 +2,9 @@ FileVersion = 1
 
 [Project]
 Name = "CowieCLI"
+
+[[Configs.Debug.Win64.DistinctOptions]]
+Filter = "System.Collections.List<*>"
+ReflectAlwaysInclude = "AssumeInstantiated"
+ReflectNonStaticMethods = true
+ReflectConstructors = true

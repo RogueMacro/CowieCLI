@@ -5,9 +5,35 @@ namespace CowieCLI
 {
 	public class CommandCall
 	{
-		public String Command = new .() ~ delete _;
-		public List<String> Options = new .() ~ DeleteContainerAndItems!(_);
+		//public String OptionName = new .() ~ delete _;
+		//public List<String> Options = new .() ~ DeleteContainerAndItems!(_);
+		public Dictionary<String, List<String>> Values = new .() ~ DeleteDictionaryAndKeysAndItems!(_);
 
-		public void AddOption(StringView option) => Options.Add(new String()..Set(option));
+		public void AddOption(StringView name, List<String> options)
+		{
+			let opts = new List<String>();
+			opts.AddRange(options);
+
+			Values.Add(new String(name), opts);
+		}
+
+		public bool HasOption(StringView name)
+		{
+			for (var key in Values.Keys)
+			{
+				if (key.Equals(scope String(name)))
+				{
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		public List<String> GetValues(String optionName)
+		{
+			return Values[optionName];
+		}
+		//public void AddOption(StringView option) => Options.Add(new String()..Set(option));
 	}
 }
