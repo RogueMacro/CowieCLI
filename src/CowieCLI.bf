@@ -4,21 +4,28 @@ using System.Reflection;
 
 namespace CowieCLI
 {
+	/*
+	Option types:
+		Short flag option (bool): -q -> bool quiet = true (false if option is not present)
+		Verbose flag option (bool): --quiet -> bool quiet = true (false if option is not present)
+		Option with value (String): --letters abc -> String letters = "abc" (Empty string if option is not present)
+		Option with multiple values (List<String>): --letters a b c -> List<String> letters = { "a", "b", "c" } (Empty list if option is not present)
+	*/
 	public static class CowieCLI
 	{
 		public static List<CommandEntry> Commands = new .() ~ DeleteContainerAndItems!(_);
 
 		public static Verbosity CurrentVerbosity = .Normal;
 
-		public static String HelpMessage = new String();
+		public static String HelpMessage;
 		public static Type DefaultCommand = null;
 
-		public static void Init(StringView helpMessage = "")
+		public static void Init(String helpMessage = "")
 		{
-			HelpMessage.Set(helpMessage);
+			HelpMessage = helpMessage;
 		}
 
-		public static void Init<TDefaultCommand>(StringView helpMessage = "") where TDefaultCommand : ICommand
+		public static void Init<TDefaultCommand>(String helpMessage = "") where TDefaultCommand : ICommand
 		{
 			DefaultCommand = typeof(TDefaultCommand);
 			Init(helpMessage);
@@ -32,73 +39,32 @@ namespace CowieCLI
 				Console.WriteLine(command.Info.About);
 		}
 
-		public static void Run(Span<String> args)
+		private static CommandCall ParseCall(Span<String> args)
 		{
-			List<CommandCall> calls = scope .();
-			CommandCall commandCall = scope .();
+			if (args.Length == 0)
+			{
+				Help();
+				return null;
+			}
 
-			// TODO: Implement multiple command
-			// List<StringView> extraCommands = null;
+			CommandCall call = new .();
+
+			if (IsCommand(args[0]))
+				call.Command.Set(args[0]);
+			else
+				FatalError("Unknown command: {}", args[0]);
 
 			for (var arg in args)
 			{
 				// Option
-				if (arg.StartsWith('-')) 
-				{
-					commandCall.AddOption(arg);
-				}
-				// Command
-				else if (IsCommand(arg))
-				{
-					if (calls.Count > 0)
-					{
-						calls.Add(commandCall);
-						commandCall = scope:: .();
-					}
-
-					commandCall.Command.Set(arg);
-				}
-				// Multiple command calls (same options). Example: > install+add mypackage --verbose
-				/*else if (IsMultiCommand(arg))
-				{
-					extraCommands = scope:: .();
-					for (let command in arg.Split('+'))
-						extraCommands.Add(command);
-				}*/
-				else if (commandCall.Command.IsEmpty)
-				{
-					FatalError("Unknown command: {}", arg);
-				}
-				// Option value
+				if (arg.StartsWith('-'))
+					call.AddOption(arg);
+				// Value
 				else
-				{
-					commandCall.AddOption(arg);
-				}
+					call.AddOption(arg);
 			}
-
-			calls.Add(commandCall);
-
-			// No commands called
-			if (calls.IsEmpty)
-			{
-				Help();
-				return;
-			}
-
-			for (let call in calls)
-			{
-				let result = GetCommand(call.Command);
-				if (result case .Ok(let commandInstance))
-				{
-					if (commandInstance == null)
-						continue;
-
-					RunCommand(commandInstance, call.Options);
-					delete commandInstance;
-				}
-				else
-					FatalError("Unknown command: {}", call.Command);
-			}	
+			
+			return call;
 
 			bool IsMultiCommand(StringView arg)
 			{
@@ -109,25 +75,36 @@ namespace CowieCLI
 			}
 		}
 
-		private static void RunCommand(ICommand command, List<String> options)
+		public static void Run(Span<String> args)
 		{
+			var call = ParseCall(args);
+			ICommand command = null;
+
+			let result = GetCommand(call.Command);
+			if (result case .Ok(let commandInstance))
+			{
+				if (commandInstance == null)
+					return;
+				command = commandInstance;
+			}
+
 			CurrentVerbosity = .Normal;
 
-			for (let option in options)
+			for (let option in call.Options)
 			{
 				switch (option)
 				{
 				case "--debug", "-d":
 					CurrentVerbosity = .Debug;
-					options.DeleteAndRemove(option);
+					call.Options.DeleteAndRemove(option);
 					break;
 				case "--verbose", "-v":
 					CurrentVerbosity = .Verbose;
-					options.DeleteAndRemove(option);
+					call.Options.DeleteAndRemove(option);
 					break;
 				case "--quiet", "-q":
 					CurrentVerbosity = .Quiet;
-					options.DeleteAndRemove(option);
+					call.Options.DeleteAndRemove(option);
 					break;
 				}
 			}
@@ -153,7 +130,7 @@ namespace CowieCLI
 
 						field.SetValue(command, optionValues);
 						for (var value in optionValues)
-							options.Remove(value);
+							call.Options.Remove(value);
 						break;
 					case typeof(bool):
 						field.SetValue(command, GetOption(option.Name, option.Short));
@@ -170,11 +147,11 @@ namespace CowieCLI
 					FatalError("Could not find field matching option: {}", option);
 			}
 
-			if (options.Count == 1)
-				FatalError("Unknown option: {}", options[0]);
-			else if (options.Count > 1)
+			if (call.Options.Count == 1)
+				FatalError("Unknown option: {}", call.Options[0]);
+			else if (call.Options.Count > 1)
 			{
-				var str = scope String()..Join(", ", options.GetEnumerator());
+				var str = scope String()..Join(", ", call.Options.GetEnumerator());
 				FatalError("Unknown options: {}", str);
 			}
 
@@ -225,6 +202,8 @@ namespace CowieCLI
 			}
 
 			command.Execute();
+			delete call;
+			delete command;
 
 			void CheckRequirement()
 			{
@@ -240,11 +219,11 @@ namespace CowieCLI
 
 			void RemoveOption(String verbose, String short)
 			{
-				for (var option in options)
+				for (var option in call.Options)
 				{
 					if (IsOption(option, verbose, short))
 					{
-						options.DeleteAndRemove(option);
+						call.Options.DeleteAndRemove(option);
 						break;
 					}
 				}
@@ -260,7 +239,7 @@ namespace CowieCLI
 
 			bool GetOption(String verbose, String short = "")
 			{
-				for (var option in options)
+				for (var option in call.Options)
 				{
 					if (IsOption(option, verbose, short))
 						return true;
@@ -272,7 +251,7 @@ namespace CowieCLI
 			String GetStringOption(String verbose, String short = "")
 			{
 				var str = new String();
-				var enumerator = options.GetEnumerator();
+				var enumerator = call.Options.GetEnumerator();
 				for (var option in enumerator)
 				{
 					if (IsOption(option, verbose, short))
@@ -289,9 +268,9 @@ namespace CowieCLI
 
 			List<String> GetMultipleOptions(String verbose, String short = "")
 			{
-				var enumerator = options.GetEnumerator();
+				var enumerator = call.Options.GetEnumerator();
 				var isOption = false;
-				var containsOption = options.Contains(verbose) || options.Contains(short);
+				var containsOption = call.Options.Contains(verbose) || call.Options.Contains(short);
 				var result = new List<String>();
 
 				for (var option in enumerator)
