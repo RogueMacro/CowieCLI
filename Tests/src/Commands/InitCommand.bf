@@ -11,9 +11,9 @@ namespace CowieCLITests.Commands
 		private CommandInfo mInfo = new CommandInfo()
 			.Name("init")
 			.About("Initialize the project")
-			.Option(new CommandOption("name", "The name of the project"))
+			.Option(new CommandOption("name", "The name of the project."))
 			.Option(
-				new CommandOption("location", "The location of the project")
+				new CommandOption("location", "The location of the project.")
 					.Optional()
 			)
 			.Option(

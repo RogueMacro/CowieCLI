@@ -12,11 +12,11 @@ namespace CowieCLITests.Commands
 			.Name("install")
 			.About("Install different packages.")
 			.Option(
-				new CommandOption("packages", "The name of the project")
+				new CommandOption("packages", "The list of packages to be installed.")
 					.List()
 			)
 			.Option(
-				new CommandOption("global", "Install the package globally")
+				new CommandOption("global", "Install the package globally.")
 					.Short("g")
 					.Flag()
 					.Optional()

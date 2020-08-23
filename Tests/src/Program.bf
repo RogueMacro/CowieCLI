@@ -8,8 +8,7 @@ namespace CowieCLITests
 	{
 		public static void Main(String[] args)
 		{
-			var cli = scope CowieCLI();
-			cli.Init("Help: Tests for the CowieCLI library.");
+			var cli = scope CowieCLI("CowieCLITests", "A test program for the CowieCLI library.");
 			cli.RegisterCommand<InitCommand>("init");
 			cli.RegisterCommand<InstallCommand>("install");
 			cli.Run(args);

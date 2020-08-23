@@ -63,6 +63,10 @@ namespace CowieCLI
 			return this;
 		}
 
+		public void Help()
+		{
+		}
+
 		public override void ToString(String strBuffer)
 		{
 			strBuffer.Append(Name);
