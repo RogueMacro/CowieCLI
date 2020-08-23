@@ -13,14 +13,16 @@ namespace CowieCLI
 			{
 				if (name.StartsWith("--"))
 				{
-					if (option.Name.Equals(scope String(&name[2])))
+					var optionName = scope String(name, 2, name.Length - 2);
+					if (option.Name.Equals(optionName))
 					{
 						return true;
 					}
 				}
 				else if (name.StartsWith('-') && (name[1] != '-'))
 				{
-					if (option.ShortName.Equals(scope String(&name[1])))
+					var optionName = scope String(name, 1, 1);
+					if (option.ShortName.Equals(optionName))
 					{
 						return true;
 					}

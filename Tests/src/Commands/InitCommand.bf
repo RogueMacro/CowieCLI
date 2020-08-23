@@ -18,7 +18,7 @@ namespace CowieCLITests.Commands
 			)
 			.Option(
 				new CommandOption("flags", "Multiple flags.")
-					.List()
+					.List(',')
 					.Optional()
 			) ~ delete (_);
 

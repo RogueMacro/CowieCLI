@@ -11,6 +11,9 @@ namespace CowieCLI
 
 		public bool IsOptional = false;
 		public bool IsList = false;
+		public bool IsFlag = false;
+
+		public char8 CharSep;
 
 		public List<String> Requirements = new .() ~ DeleteContainerAndItems!(_);
 		public List<String> Conflicts = new .() ~ DeleteContainerAndItems!(_);
@@ -27,15 +30,22 @@ namespace CowieCLI
 			return this;
 		}
 
-		public Self List()
+		public Self List(char8 sep = ' ')
 		{
 			IsList = true;
+			CharSep = sep;
 			return this;
 		}
 
 		public Self Short(StringView short)
 		{
 			ShortName.Set(short);
+			return this;
+		}
+
+		public Self Flag()
+		{
+			IsFlag = true;
 			return this;
 		}
 

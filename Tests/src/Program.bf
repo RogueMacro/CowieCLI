@@ -11,6 +11,7 @@ namespace CowieCLITests
 			var cli = scope CowieCLI();
 			cli.Init("Help: Tests for the CowieCLI library.");
 			cli.RegisterCommand<InitCommand>("init");
+			cli.RegisterCommand<InstallCommand>("install");
 			cli.Run(args);
 		}
 	}

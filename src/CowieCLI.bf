@@ -20,6 +20,8 @@ namespace CowieCLI
 		public String HelpMessage;
 		public Type DefaultCommand = null;
 
+		private String mInvalidArgument = new .() ~ delete _;
+
 		public  void Init(String helpMessage = "")
 		{
 			HelpMessage = helpMessage;
@@ -328,14 +330,17 @@ namespace CowieCLI
 			let commandCall = ParseCommand(args, command);
 			if (commandCall == .Err)
 			{
-				CowieCLI.Error("Invalid arguments");
+				CowieCLI.Error("Invalid argument: {}", mInvalidArgument);
 				Help();
+				delete command;
 				return 1;
 			}
 
 			if (PopulateCommand(command, commandCall) case .Err)
 			{
 				CowieCLI.Error("Couldn't populate the command");
+				delete commandCall.Value;
+				delete command;
 				return 2;
 			}
 
@@ -414,6 +419,10 @@ namespace CowieCLI
 				var value = Float.Parse(values[0]);
 				res = field.SetValue(command, value);
 				break;
+			case typeof(bool):
+				var value = Boolean.Parse(values[0]).Value;
+				res = field.SetValue(command, value);
+				break;
 			default:
 				CowieCLI.Error("Unsupported type: {}", field.FieldType);
 				return .Err;
@@ -451,7 +460,7 @@ namespace CowieCLI
 				switch (paramType)
 				{
 				case typeof(String):
-					res = addMethod.Get().Invoke(fieldRef, value);
+					res = addMethod.Get().Invoke(fieldRef, new String(value));
 					break;
 				case typeof(int):
 					var val = Int.Parse(value);
@@ -459,6 +468,10 @@ namespace CowieCLI
 					break;
 				case typeof(float):
 					var val = Float.Parse(value);
+					res = addMethod.Get().Invoke(fieldRef, val);
+					break;
+				case typeof(bool):
+					var val = Boolean.Parse(value);
 					res = addMethod.Get().Invoke(fieldRef, val);
 					break;
 				default:
@@ -497,17 +510,30 @@ namespace CowieCLI
 				}
 				else
 				{
-					namedArg = arg;
-					namedArg.Remove(0, 2);
+					namedArg.Set(arg);
+					int count = 0;
+					for (int j = 0; j < arg.Length; j++)
+					{
+						if (arg[j] != '-')
+							break;
+						count++;
+					}
+					validArg = true;
+
+					namedArg.Remove(0, count);
 				}
 
 				if (!validArg && arg.StartsWith('-'))
 				{
+					mInvalidArgument.Set(arg);
+					delete call;
 					return .Err;
 				}
 
-				if ((optionsParsed >= command.Info.Options.Count) && !validArg)
+				if ((optionsParsed >= command.Info.RequiredOptions) && !validArg)
 				{
+					mInvalidArgument.Set(arg);
+					delete call;
 					return .Err;
 				}
 				else
@@ -518,13 +544,29 @@ namespace CowieCLI
 					if (namedArg.IsEmpty)
 					{
 						option = command.Info.Options[optionsParsed++];
-						ParseArgument(args[i], option, values);
+						if (ParseArguments(args, ref i, option, values) case .Err)
+						{
+							CowieCLI.Error("Cannot parse arguments for option: {}", arg);
+							mInvalidArgument.Set(arg);
+							ClearAndDeleteItems(values);
+							delete call;
+							return .Err;
+						}
 					}
 					else
 					{
 						option = command.Info.GetNamedOption(namedArg);
-						ParseArgument(args[i + 1], option, values);
-						i++;
+
+						if (!option.IsFlag)
+							i++;
+						if (ParseArguments(args, ref i, option, values) case .Err)
+						{
+							CowieCLI.Error("Cannot parse arguments for option: {}", arg);
+							mInvalidArgument.Set(arg);
+							ClearAndDeleteItems(values);
+							delete call;
+							return .Err;
+						}
 					}
 
 					call.AddOption(option.Name, values);
@@ -534,23 +576,57 @@ namespace CowieCLI
 			return call;
 		}
 
-		private void ParseArgument(String arg, CommandOption option, List<String> values)
+		private Result<void> ParseArguments(Span<String> args, ref int idx, CommandOption option, List<String> values)
 		{
-			if (option.IsList)
+			if (option.IsList && !option.CharSep.IsWhiteSpace)
 			{
-				if (arg.Contains(','))
+				var arg = args[idx];
+				if (!arg.Contains(option.CharSep))
 				{
-					var vals = arg.Split(',');
-					for (var v in vals)
+					return .Err;
+				}
+
+				var vals = arg.Split(option.CharSep);
+				for (var v in vals)
+				{
+					values.Add(new String(v));
+				}
+			}
+			else if (option.IsList && option.CharSep.IsWhiteSpace)
+			{
+				for (; idx < args.Length; idx++)
+				{
+					var arg = args[idx];
+					if (arg.StartsWith('-'))
 					{
-						values.Add(new String(v));
+						// We want to parse from this argument in the next pass.
+						idx--;
+						break;
 					}
+
+					values.Add(new String(arg));
 				}
 			}
 			else
 			{
-				values.Add(arg);
+				ParseArgument(args[idx], option, values);
 			}
+
+			return .Ok;
+		}
+
+		private Result<void> ParseArgument(String arg, CommandOption option, List<String> values)
+		{
+			if (option.IsFlag)
+			{
+				values.Add(new String(Boolean.TrueString));
+			}
+			else
+			{
+			 	values.Add(new String(arg));
+			}
+
+			return .Ok;
 		}
 
 		private Result<ICommand> GetCommand(StringView name)

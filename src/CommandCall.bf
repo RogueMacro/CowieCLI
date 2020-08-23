@@ -7,7 +7,21 @@ namespace CowieCLI
 	{
 		//public String OptionName = new .() ~ delete _;
 		//public List<String> Options = new .() ~ DeleteContainerAndItems!(_);
-		public Dictionary<String, List<String>> Values = new .() ~ DeleteDictionaryAndKeysAndItems!(_);
+		public Dictionary<String, List<String>> Values = new .();
+		public String InvalidArgument = new .() ~ delete _;
+
+		public ~this()
+		{
+			if (Values != null)
+			{
+				for (var value in Values)
+				{
+					delete value.key;
+					DeleteContainerAndItems!(value.value);
+				}
+				delete Values;
+			}
+		}
 
 		public void AddOption(StringView name, List<String> options)
 		{

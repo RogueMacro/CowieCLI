@@ -9,6 +9,8 @@ namespace CowieCLI
 		public String About = new .() ~ delete _;
 		public List<CommandOption> Options = new .() ~ DeleteContainerAndItems!(_);
 
+		public int RequiredOptions;
+
 		public Self Name(StringView name)
 		{
 			Name.Set(name);
@@ -24,6 +26,12 @@ namespace CowieCLI
 		public Self Option(CommandOption option)
 		{
 			Options.Add(option);
+
+			if (!option.IsOptional)
+			{
+				RequiredOptions++;
+			}
+
 			return this;
 		}
 
@@ -31,7 +39,7 @@ namespace CowieCLI
 		{
 			for (var option in Options)
 			{
-				if (option.Name == name)
+				if ((option.Name == name) || (option.ShortName == name))
 				{
 					return option;
 				}
