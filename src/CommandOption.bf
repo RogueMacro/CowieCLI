@@ -6,11 +6,14 @@ namespace CowieCLI
 	public class CommandOption
 	{
 		public String Name = new .() ~ delete _;
+		public String ShortName = new .() ~ delete _;
 		public String Description = new .() ~ delete _;
 
-		public bool IsRequired = false;
+		public bool IsOptional = false;
+		public bool IsList = false;
+		public bool IsFlag = false;
 
-		public String Short = new .() ~ delete _;
+		public char8 CharSep;
 
 		public List<String> Requirements = new .() ~ DeleteContainerAndItems!(_);
 		public List<String> Conflicts = new .() ~ DeleteContainerAndItems!(_);
@@ -21,15 +24,28 @@ namespace CowieCLI
 			Description.Set(description);
 		}
 
-		public Self Required()
+		public Self Optional()
 		{
-			IsRequired = true;
+			IsOptional = true;
+			return this;
+		}
+
+		public Self List(char8 sep = ' ')
+		{
+			IsList = true;
+			CharSep = sep;
 			return this;
 		}
 
 		public Self Short(StringView short)
 		{
-			Short.Set(short);
+			ShortName.Set(short);
+			return this;
+		}
+
+		public Self Flag()
+		{
+			IsFlag = true;
 			return this;
 		}
 

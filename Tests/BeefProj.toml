@@ -1,0 +1,9 @@
+FileVersion = 1
+Dependencies = {corlib = "*", CowieCLI = "*"}
+
+[Project]
+Name = "CowieCLITests"
+StartupObject = "CowieCLITests.Program"
+
+[Configs.Debug.Win64]
+DebugCommandArguments = "install --g Package1 Package2 Package3"
